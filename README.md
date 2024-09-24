@@ -16,10 +16,13 @@ Then run:
 
     make
 
+Warning !! This will not compile without a ROM file, which is NOT part of this repository.
+
 Adding a ROM file
 -----------------
 
-You must manually add your ROM file as `Core/Src/gameboy_rom.h`. With the `xxd`, just run:
+You must manually add your ROM file as `Core/Src/gameboy_rom.h`.
+With the `xxd`, just run:
 
     cd Core/Src
     xxd -i gameboy_rom.gb > gameboy_rom.h
