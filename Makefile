@@ -14,19 +14,19 @@ ifeq ($(TOOLCHAIN_ROOT),)
 	$(error TOOLCHAIN_ROOT is not defined. Please set TOOLCHAIN_ROOT in config.mk)
 endif
 
-Q ?= @ # 
+Q ?= @
 
 TARGET_COMPILER ?= gcc
 # default compiler optimization level:
-export OPTIMIZE_LEVEL ?= g
-APP_CPP_FLAGS   += -g
+export OPTIMIZE_LEVEL ?= 3
+# APP_CPP_FLAGS   += -g
 
 APPNAME         := firmware
 OBJDIR          := build
 
 APP_CPP_FLAGS   += -fno-strict-aliasing -fno-math-errno
 ODFLAGS         := -x --syms
-# 
+#
 CROSS_COMPILE   ?= arm-none-eabi-
 ARCH_FLAGS      := -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mlittle-endian --specs=nosys.specs
 LINKER_SCRIPT   := STM32F429ZITX_FLASH.ld
@@ -48,7 +48,7 @@ APP_CPP_FLAGS   += -DSTM32F429xx
 # --specs=nano.specs: Use newlib nano libc
 # --specs=nosys.specs: semihosting disabled
 
-# GCC compiler warnings 
+# GCC compiler warnings
 GCC_STACK_WARNING_BYTES := 4096
 WARNING_CHECKS  := -Wall
 WARNING_CHECKS  += -Wframe-larger-than=$(GCC_STACK_WARNING_BYTES)
@@ -108,9 +108,9 @@ CPP_FLAGS = $(APP_CPP_FLAGS)
 COMPILER_FLAGS  = -O$(OPTIMIZE_LEVEL)
 # -c: Compile without linking:
 COMPILER_FLAGS  += ${WARNING_CHECKS} -c
-COMPILER_FLAGS  += -MMD ${CPP_FLAGS} ${ARCH_FLAGS} 
+COMPILER_FLAGS  += -flto -MMD ${CPP_FLAGS} ${ARCH_FLAGS}
 ASM_FLAGS       = -x assembler-with-cpp ${COMPILER_FLAGS}
-LINK_FLAGS      = -Wl,--gc-sections -T $(LINKER_SCRIPT) ${ARCH_FLAGS}
+LINK_FLAGS      = -flto -Wl,--gc-sections -T $(LINKER_SCRIPT) ${ARCH_FLAGS}
 
 OC              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objcopy
 OD              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objdump

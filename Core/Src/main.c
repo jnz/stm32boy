@@ -23,6 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 
+#define PEANUT_GB_HIGH_LCD_ACCURACY 0
 #include "../../Peanut-GB/peanut_gb.h"
 
 // Generate by xxd -i gameboy_rom.gb > gameboy_rom.h
@@ -130,8 +131,8 @@ void screen_flip_buffers(void)
     LCD_LAYER_FRONT ^= 1;
     BSP_LCD_SetLayerVisible(LCD_LAYER_FRONT, ENABLE);
     BSP_LCD_SelectLayer(LCD_LAYER_BACK);
-
 }
+
 /* Using the Systick 1000 Hz millisecond timer to sleep */
 static void sleep(uint32_t delayMs)
 {
@@ -139,18 +140,6 @@ static void sleep(uint32_t delayMs)
     while((HAL_GetTick() - tickstart) < delayMs)
     {
         __WFE(); // save a bit of power while we are waiting
-    }
-}
-
-static void clearBuffer(uint32_t* fb)
-{
-    int y;
-    for (y = 0; y < HEIGHT; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            fb[y * WIDTH + x] = COLOR(10, 169, 216);
-        }
     }
 }
 
@@ -218,7 +207,11 @@ void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
 void mainTask(void)
 {
     int frameTimeMs = 0; // current frametime in ms
-    const int setpointframeTimeMs = 16;
+    const int setpointframeTimeMs = 15;
+    int lastfpsupdate = HAL_GetTick();
+    int fps = 0;
+    int fpscounter = 0;
+    unsigned char fpstext[] = {0, 0, ' ', 'f', 'p', 's', 0};
 
     // setup game boy
     static struct gb_s gb;
@@ -231,8 +224,11 @@ void mainTask(void)
     gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
             &gb_cart_ram_write, &gb_error, &priv);
 
-    clearBuffer(g_fb[LCD_LAYER_FRONT]);
-    clearBuffer(g_fb[LCD_LAYER_BACK]);
+    BSP_LCD_SetFont(&Font12);
+    BSP_LCD_Clear(COLOR(10, 169, 216));
+    screen_flip_buffers();
+    BSP_LCD_SetFont(&Font12);
+    BSP_LCD_Clear(COLOR(10, 169, 216));
 
     gb_init_lcd(&gb, &lcd_draw_line);
 
@@ -245,25 +241,24 @@ void mainTask(void)
         */
 
         gb_run_frame(&gb);
+        BSP_LCD_DisplayStringAt(0, 0, fpstext, LEFT_MODE);
         screen_flip_buffers();
 
         frameTimeMs = (int)(HAL_GetTick() - tickStart);
-        const int timeleftMs = setpointframeTimeMs - frameTimeMs;
-        if (timeleftMs > 0)
-        {
-            sleep(timeleftMs);
-        }
 
-        // Send the frametime in milliseconds via ASCII over UART to a host PC for debugging/optimization
-        /*
-        uint8_t uartAsciiOutput[128]; // debug ASCII output buffer for UART sending
-        if (epoch % 60 == 0 && HAL_UART_GetState(&huart1) == HAL_UART_STATE_READY)
+        int timeleftMs = setpointframeTimeMs - frameTimeMs;
+        timeleftMs = timeleftMs > 0 ? timeleftMs : 0;
+        sleep(timeleftMs);
+        fpscounter++;
+
+        if (HAL_GetTick() - lastfpsupdate >= 1000)
         {
-            const int bytesInBuffer =
-                    snprintf((char*)uartAsciiOutput, sizeof(uartAsciiOutput), "%i ms\r\n", frameTimeMs);
-            HAL_UART_Transmit(&huart1, uartAsciiOutput, bytesInBuffer, 32);
+            lastfpsupdate = HAL_GetTick();
+            fps = fpscounter;
+            fpscounter = 0;
+            fpstext[0] = '0' + (fps/10) % 10;
+            fpstext[1] = '0' + fps % 10;
         }
-        */
     }
 }
 
