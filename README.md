@@ -16,7 +16,7 @@ Then run:
 
     make
 
-Warning !! This will not compile without a ROM file, which is NOT part of this repository.
+⚠️  This will not compile without a ROM file, which is NOT part of this repository. ⚠️
 
 Adding a ROM file
 -----------------
