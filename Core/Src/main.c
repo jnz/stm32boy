@@ -143,18 +143,11 @@ static void sleep(uint32_t delayMs)
 static void clearBuffer(uint32_t* fb)
 {
     int y;
-    for (y = 0; y < HEIGHT / 2; y++)
+    for (y = 0; y < HEIGHT; y++)
     {
         for (int x = 0; x < WIDTH; x++)
         {
             fb[y * WIDTH + x] = COLOR(10, 169, 216);
-        }
-    }
-    for (; y < HEIGHT; y++)
-    {
-        for (int x = 0; x < WIDTH; x++)
-        {
-            fb[y * WIDTH + x] = COLOR(108, 108, 108);
         }
     }
 }
@@ -211,30 +204,33 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
 void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
            const uint_fast8_t line)
 {
-    struct priv_t *priv = gb->direct.priv;
-    const uint32_t palette[] = { 0xFFFFFF, 0xA5A5A5, 0x525252, 0x000000 };
+    const uint32_t palette[] = { COLOR(255,255,255), COLOR(0xA5,0xA5,0xA5), COLOR(0x52,0x52,0x52), COLOR(0,0,0) };
+    uint32_t* fb = g_fb[LCD_LAYER_BACK];
 
-    // for(unsigned int x = 0; x < LCD_WIDTH; x++)
-    //    priv->fb[line][x] = palette[pixels[x] & 3];
+    const int sx = 40;
+    const int sy = 88;
+    for(unsigned int x = 0; x < LCD_WIDTH; x++)
+        fb[(line+sy) * WIDTH + x + sx] = palette[pixels[x] & 3];
 }
 
 void mainTask(void)
 {
-    float dt_sec = 0.0f;
     int frameTimeMs = 0; // current frametime in ms
-    const int setpointframeTimeMs = 33;
+    const int setpointframeTimeMs = 16;
 
     // setup game boy
     static struct gb_s gb;
     static struct priv_t priv;
     static uint8_t g_ram[0x20000];
-    enum gb_init_error_e ret;
 
     priv.rom = gameboy_rom;
     priv.cart_ram = g_ram;
 
-    ret = gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
-                  &gb_cart_ram_write, &gb_error, &priv);
+    gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
+            &gb_cart_ram_write, &gb_error, &priv);
+
+    clearBuffer(g_fb[LCD_LAYER_FRONT]);
+    clearBuffer(g_fb[LCD_LAYER_BACK]);
 
     gb_init_lcd(&gb, &lcd_draw_line);
 
@@ -246,9 +242,7 @@ void mainTask(void)
         kb[SDL_SCANCODE_W] = (BSP_PB_GetState(BUTTON_KEY) != RESET);
         */
 
-        clearBuffer(g_fb[LCD_LAYER_BACK]);
         gb_run_frame(&gb);
-
         screen_flip_buffers();
 
         frameTimeMs = (int)(HAL_GetTick() - tickStart);
@@ -257,7 +251,6 @@ void mainTask(void)
         {
             sleep(timeleftMs);
         }
-        dt_sec = ((int)(HAL_GetTick() - tickStart))/1000.0f;
 
         // Send the frametime in milliseconds via ASCII over UART to a host PC for debugging/optimization
         /*
