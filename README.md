@@ -5,6 +5,8 @@ Running Game Boy ROMS on the STM32 ARM Cortex microcontroller.
 
 ![logo](/img/stm32boy.png)
 
+![gif](img/demo.gif?raw=1)
+
 Build
 -----
 
