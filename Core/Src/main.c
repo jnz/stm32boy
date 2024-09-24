@@ -119,10 +119,8 @@ int main(void)
 void screen_flip_buffers(void)
 {
   // wait for VSYNC
-    while (!(LTDC->CDSR & LTDC_CDSR_VSYNCS))
-    {
-        __WFE();
-    }
+    while (!(LTDC->CDSR & LTDC_CDSR_VSYNCS)) {}
+
     BSP_LCD_SetLayerVisible(LCD_LAYER_FRONT, DISABLE);
     LCD_LAYER_BACK = LCD_LAYER_FRONT;
     LCD_LAYER_FRONT ^= 1;
@@ -382,3 +380,4 @@ void assert_failed(uint8_t *file, uint32_t line)
     /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
