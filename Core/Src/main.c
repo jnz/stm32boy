@@ -19,7 +19,6 @@
 #include <string.h>
 #include <assert.h>
 #include "stm32f429i_discovery_lcd.h"
-#include "stm32f429i_discovery_gyroscope.h"
 #include <math.h>
 
 /* Private includes ----------------------------------------------------------*/
@@ -51,7 +50,6 @@ RNG_HandleTypeDef hrng;
 static int LCD_LAYER_FRONT; // active display layer (front buffer)
 static int LCD_LAYER_BACK;
 static uint32_t* g_fb[2];
-static bool g_gyroReady;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -70,13 +68,6 @@ int main(void)
     /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
     HAL_Init();
     SystemClock_Config();
-
-    /* Gyroscope init */
-    if (BSP_GYRO_Init() == GYRO_OK)
-    {
-        BSP_GYRO_Reset();
-        g_gyroReady = true;
-    }
 
     /* Serial output (UART)  */
     // MX_DMA_Init();
@@ -252,15 +243,6 @@ void mainTask(void)
         uint32_t tickStart = HAL_GetTick();
 
         /*
-        if (g_gyroReady)
-        {
-            float rates[3] = {0,0,0};
-            BSP_GYRO_GetXYZ(rates);
-            for (int i=0;i<3;i++)
-            {
-                rates[i]*=(1/(1024.0f));
-            }
-        }
         kb[SDL_SCANCODE_W] = (BSP_PB_GetState(BUTTON_KEY) != RESET);
         */
 
