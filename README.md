@@ -22,7 +22,7 @@ Adding a ROM file
 -----------------
 
 You must manually add your ROM file as `Core/Src/gameboy_rom.h`.
-With the `xxd`, just run:
+With the `xxd` tool installed on Linux, just run:
 
     cd Core/Src
     xxd -i gameboy_rom.gb > gameboy_rom.h
