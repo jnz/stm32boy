@@ -1,0 +1,28 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug STM32F429",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "stutil",
+            "executable": "${workspaceFolder}/firmware.elf",  // Update this path
+            "device": "STM32F429ZI",
+            "cwd": "${workspaceFolder}",
+            "interface": "swd",
+            "runToEntryPoint": "main",
+            "postRestartCommands": [
+                "monitor reset halt",
+                "monitor reset init"
+            ],
+            "preLaunchTask": "build",
+            "serverpath": "st-util",  // Update this to your st-util path if needed
+            "serverArgs": ["--connect-under-reset"],
+            "searchDir": ["${workspaceFolder}/Core/Src"],  // Update to the directory where source files are located
+            "showDevDebugOutput": "none"
+            // Configure this in your settings.json:
+            // "cortex-debug.armToolchainPath": "/path/to/gcc-arm-none-eabi-10.3-2021.10/bin",
+            // "cortex-debug.armToolchainPrefix": "arm-none-eabi",
+        }
+    ]
+}
