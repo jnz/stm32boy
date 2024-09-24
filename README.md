@@ -16,3 +16,17 @@ Then run:
 
     make
 
+Adding a ROM file
+-----------------
+
+You must manually add your ROM file as `Core/Src/gameboy_rom.h`. With the `xxd`, just run:
+
+    cd Core/Src
+    xxd -i gameboy_rom.gb > gameboy_rom.h
+
+The variable name must be `gameboy_rom_gb` and the (large) file should look
+something like this:
+
+    unsigned char gameboy_rom_gb[] = {
+      0xc3, 0x0c, 0x02, ...
+
