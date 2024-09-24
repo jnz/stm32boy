@@ -1,0 +1,10 @@
+.settings
+Debug/*
+Release/*
+build/*
+firmware.bin
+firmware.dmp
+firmware.elf
+firmware.hex
+firmware.list
+config.mk
