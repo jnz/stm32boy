@@ -110,7 +110,7 @@ COMPILER_FLAGS  = -O$(OPTIMIZE_LEVEL)
 COMPILER_FLAGS  += ${WARNING_CHECKS} -c
 COMPILER_FLAGS  += -flto -MMD ${CPP_FLAGS} ${ARCH_FLAGS}
 ASM_FLAGS       = -x assembler-with-cpp ${COMPILER_FLAGS}
-LINK_FLAGS      = -flto -Wl,--gc-sections -T $(LINKER_SCRIPT) ${ARCH_FLAGS}
+LINK_FLAGS      = -flto -Wl,--gc-sections -T $(LINKER_SCRIPT) ${ARCH_FLAGS} -Wl,-Map=${APPNAME}.map
 
 OC              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objcopy
 OD              := ${TOOLCHAIN_ROOT}${CROSS_COMPILE}objdump

@@ -8,4 +8,5 @@ firmware.dmp
 firmware.elf
 firmware.hex
 firmware.list
+firmware.map
 config.mk
