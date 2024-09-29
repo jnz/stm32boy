@@ -7,6 +7,14 @@
  * Copyright (c) 2024 Jan Zwiener (jan@zwiener.org)
  * All rights reserved.
  *
+ * Input button mapping table
+ *
+ * GPIO    Pull          Function  Comment
+ * --------------------------------------------------
+ * PA0     PULLDOWN      START     (Blue Button)
+ * PB4     PULLUP        SELECT
+ *
+ *
  ******************************************************************************
  */
 
@@ -64,25 +72,32 @@ void mainTask(void);
 void render(const float dt_sec, float forward, float left);
 void clearFrameBuffer(void);
 
+static void sleep(uint32_t delayMs);
+
 /* Private user code ---------------------------------------------------------*/
 
 int main(void)
 {
-    /* MCU Configuration--------------------------------------------------------*/
+    /* MCU Configuration----------------------------------------------------- */
 
-    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    /* Reset of all peripherals, Initializes the Flash interface and the
+     * Systick. */
     HAL_Init();
     SystemClock_Config();
 
+    /* Inputs & LEDs */
+    /* ------------- */
+    BSP_LED_Init(LED3);
+    BSP_LED_Init(LED4);
+    BSP_LED_On(LED4);
+    BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO); /* blue button on disco board */
+
     /* Serial output (UART)  */
-    // MX_DMA_Init();
+    /* --------------------  */
     MX_USART1_UART_Init();
-    /* Setup hardware random number generator */
-    hrng.Instance = RNG;
-    HAL_RNG_Init(&hrng);
 
     /* Display setup */
-    BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_EXTI);
+    /* ------------- */
 
     BSP_LCD_Init();
     LCD_LAYER_FRONT = 1;
@@ -96,6 +111,7 @@ int main(void)
     BSP_LCD_SelectLayer(LCD_LAYER_BACK);
 
     /* ChromART (DMA2D) setup */
+    /* ---------------------- */
     hdma2d.Init.Mode         = DMA2D_M2M; // convert 8bit palette colors to 32bit ARGB888
     hdma2d.Init.ColorMode    = DMA2D_ARGB8888; // destination color format
     hdma2d.Init.OutputOffset = 0;
@@ -108,14 +124,24 @@ int main(void)
     HAL_DMA2D_ConfigLayer(&hdma2d, LCD_LAYER_FRONT);
 
     /* Enable CPU cycle counter */
+    /* ------------------------ */
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
     // access the cycle counter at: DWT->CYCCNT
 
-    /* Setup Game Boy Emulator */
+    /* Setup buttons */
+    /* ------------- */
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    GPIO_InitStruct.Pin = GPIO_PIN_4;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    GPIO_InitStruct.Speed = GPIO_SPEED_MEDIUM;
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
     /* Run Main task */
+    /* ------------- */
     mainTask();
 
     while (1) {} /* should never end up here */
@@ -195,13 +221,25 @@ void gb_error(struct gb_s *gb, const enum gb_error_e gb_err, const uint16_t val)
 void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
            const uint_fast8_t line)
 {
-    const uint32_t palette[] = { COLOR(255,255,255), COLOR(0xA5,0xA5,0xA5), COLOR(0x52,0x52,0x52), COLOR(0,0,0) };
+    // The Game Boy has 4 colors, map them to 32bit RGB colors
+    const uint32_t palette[] = { COLOR(255,255,255),
+                                 COLOR(0xA5,0xA5,0xA5),
+                                 COLOR(0x52,0x52,0x52),
+                                 COLOR(0,0,0) };
+
     uint32_t* fb = g_fb[LCD_LAYER_BACK];
 
-    const int sx = 40;
-    const int sy = 88;
+    const int sx = 40; // shift Game Boy screen X pixels to the right
+    const int sy = 0;  // shift Game Boy screen Y pixels down
     for(unsigned int x = 0; x < LCD_WIDTH; x++)
         fb[(line+sy) * WIDTH + x + sx] = palette[pixels[x] & 3];
+}
+
+#define SETBIT(w, m, f) if (f) { w |= m; } else { w &= ~m; }
+static void checkbuttons(struct gb_s* gb)
+{
+    SETBIT(gb->direct.joypad, JOYPAD_START,   BSP_PB_GetState(BUTTON_KEY));
+    SETBIT(gb->direct.joypad, JOYPAD_SELECT,  HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_RESET);
 }
 
 void mainTask(void)
@@ -211,7 +249,7 @@ void mainTask(void)
     int lastfpsupdate = HAL_GetTick();
     int fps = 0;
     int fpscounter = 0;
-    unsigned char fpstext[] = {0, 0, ' ', 'f', 'p', 's', 0};
+    unsigned char fpstext[] = {'0', '0', 'f', 'p', 's', 0};
 
     // setup game boy
     static struct gb_s gb;
@@ -232,14 +270,13 @@ void mainTask(void)
 
     gb_init_lcd(&gb, &lcd_draw_line);
 
+    BSP_LED_Off(LED4);
+
     for(uint32_t epoch=0;;epoch++)
     {
         uint32_t tickStart = HAL_GetTick();
 
-        /*
-        kb[SDL_SCANCODE_W] = (BSP_PB_GetState(BUTTON_KEY) != RESET);
-        */
-
+        checkbuttons(&gb);
         gb_run_frame(&gb);
         BSP_LCD_DisplayStringAt(0, 0, fpstext, LEFT_MODE);
         screen_flip_buffers();
@@ -350,6 +387,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
  */
 void Error_Handler(void)
 {
+    BSP_LED_On(LED4);
+
     /* USER CODE BEGIN Error_Handler_Debug */
     /* User can add his own implementation to report the HAL error return state */
     __disable_irq();
