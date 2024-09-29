@@ -103,7 +103,6 @@ int main(void)
 
     /* Display setup */
     /* ------------- */
-
     BSP_LCD_Init();
     LCD_LAYER_FRONT = 1;
     LCD_LAYER_BACK = 0;
