@@ -53,6 +53,8 @@ static const
 #define SCREEN_X_OFFSET 40 /* shift Game Boy screen X pixels to the right */
 #define SCREEN_Y_OFFSET 10  /* shift Game Boy screen Y pixels down */
 
+// #define USE_DISCRETE_INPUT /* discrete GPIOs are connected to buttons */
+
 /* Private macro -------------------------------------------------------------*/
 
 /* Private variables ---------------------------------------------------------*/
@@ -135,13 +137,20 @@ int main(void)
 
     /* Setup buttons */
     /* ------------- */
+#ifdef USE_DISCRETE_INPUT
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    __HAL_RCC_GPIOB_CLK_ENABLE();
-    GPIO_InitStruct.Pin = GPIO_PIN_4;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
     GPIO_InitStruct.Pull = GPIO_PULLUP;
     GPIO_InitStruct.Speed = GPIO_SPEED_MEDIUM;
+
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    GPIO_InitStruct.Pin = GPIO_PIN_4 | GPIO_PIN_7;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    GPIO_InitStruct.Pin = GPIO_PIN_3 | GPIO_PIN_8 | GPIO_PIN_11 | GPIO_PIN_12 | GPIO_PIN_13;
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+#endif
 
     /* Run Main task */
     /* ------------- */
@@ -241,8 +250,18 @@ void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
 #define SETBIT(w, m, f) if (f) { w |= m; } else { w &= ~m; }
 static void checkbuttons(struct gb_s* gb)
 {
-    SETBIT(gb->direct.joypad, JOYPAD_START,   BSP_PB_GetState(BUTTON_KEY));
-    SETBIT(gb->direct.joypad, JOYPAD_SELECT,  HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_RESET);
+
+    SETBIT(gb->direct.joypad, JOYPAD_START,  BSP_PB_GetState(BUTTON_KEY));
+#ifdef USE_DISCRETE_INPUT
+    SETBIT(gb->direct.joypad, JOYPAD_SELECT, HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4)  == GPIO_PIN_RESET);
+    SETBIT(gb->direct.joypad, JOYPAD_A,      HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_7)  == GPIO_PIN_RESET);
+
+    SETBIT(gb->direct.joypad, JOYPAD_DOWN,   HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_8)  == GPIO_PIN_RESET);
+    SETBIT(gb->direct.joypad, JOYPAD_B,      HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_3)  == GPIO_PIN_RESET);
+    SETBIT(gb->direct.joypad, JOYPAD_LEFT,   HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_11) == GPIO_PIN_RESET);
+    SETBIT(gb->direct.joypad, JOYPAD_RIGHT,  HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_12) == GPIO_PIN_RESET);
+    SETBIT(gb->direct.joypad, JOYPAD_UP,     HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET);
+#endif
 }
 
 static void setupframebuffer(void)
@@ -253,7 +272,6 @@ static void setupframebuffer(void)
     BSP_LCD_DrawVLine(SCREEN_X_OFFSET+LCD_WIDTH, SCREEN_Y_OFFSET, LCD_HEIGHT);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET-1, LCD_WIDTH);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET+LCD_HEIGHT, LCD_WIDTH);
-
 }
 
 void mainTask(void)
