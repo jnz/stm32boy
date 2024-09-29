@@ -79,6 +79,7 @@ APP_SUBDIRS += \
 	./Drivers/BSP/STM32F429I-Discovery \
 	./Drivers/STM32F4xx_HAL_Driver/Src \
 	./Drivers/BSP/Components/l3gd20 \
+	./Drivers/BSP/Components/stmpe811 \
 	./Drivers/BSP/Components/ili9341 \
 
 
@@ -92,6 +93,7 @@ APP_INCLUDE_PATH += \
 	-I"Drivers/CMSIS/Include/" \
 	-I"Drivers/CMSIS/Device/ST/STM32F4xx/Include/" \
 	-I"Drivers/BSP/Components/l3gd20/" \
+	-I"Drivers/BSP/Components/stmpe811/" \
 	-I"Drivers/BSP/Components/ili9341/" \
 
 

@@ -27,6 +27,7 @@
 #include <string.h>
 #include <assert.h>
 #include "stm32f429i_discovery_lcd.h"
+#include "stm32f429i_discovery_ts.h"
 #include <math.h>
 
 /* Private includes ----------------------------------------------------------*/
@@ -54,6 +55,16 @@ static const
 #define SCREEN_Y_OFFSET 10  /* shift Game Boy screen Y pixels down */
 
 // #define USE_DISCRETE_INPUT /* discrete GPIOs are connected to buttons */
+#define USE_TOUCH_INPUT
+
+#define DPAD_X  20
+#define DPAD_Y  220
+#define DPAD_B  25
+#define BUTTON_A_X 200
+#define BUTTON_A_Y 210
+#define BUTTON_B_X 160
+#define BUTTON_B_Y 260
+#define BUTTON_SIZE 20
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -133,6 +144,10 @@ int main(void)
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
     // access the cycle counter at: DWT->CYCCNT
+
+    /* Touch */
+    /* ----- */
+    BSP_TS_Init(WIDTH, HEIGHT);
 
     /* Setup buttons */
     /* ------------- */
@@ -233,10 +248,16 @@ void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
            const uint_fast8_t line)
 {
     // The Game Boy has 4 colors, map them to 32bit RGB colors
+    /*
     const uint32_t palette[] = { COLOR(255,255,255),
                                  COLOR(0xA5,0xA5,0xA5),
                                  COLOR(0x52,0x52,0x52),
                                  COLOR(0,0,0) };
+    */
+    const uint32_t palette[] = { COLOR(155,188,15),
+                                 COLOR(139,172,15),
+                                 COLOR(48,98,48),
+                                 COLOR(15,56,15) };
 
     uint32_t* fb = g_fb[LCD_LAYER_BACK];
 
@@ -261,16 +282,84 @@ static void checkbuttons(struct gb_s* gb)
     SETBIT(gb->direct.joypad, JOYPAD_RIGHT,  HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_12) == GPIO_PIN_RESET);
     SETBIT(gb->direct.joypad, JOYPAD_UP,     HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET);
 #endif
+#ifdef USE_TOUCH_INPUT
+    static int epoch = 0;
+    static int a_pressed = 0;
+    static int b_pressed = 0;
+    static int dpad_l = 0;
+    static int dpad_r = 0;
+    static int dpad_u = 0;
+    static int dpad_d = 0;
+
+    epoch++;
+    if (epoch > 10)
+    {
+        epoch = 0;
+
+        TS_StateTypeDef touchstate;
+        BSP_TS_GetState(&touchstate);
+        if (touchstate.TouchDetected)
+        {
+            BSP_LED_On(LED3);
+
+            const int X = touchstate.X;
+            const int Y = touchstate.Y;
+
+            a_pressed = (X > BUTTON_A_X && X < BUTTON_A_X+BUTTON_SIZE &&
+                         Y > BUTTON_A_Y && Y < BUTTON_A_Y+BUTTON_SIZE);
+            b_pressed = (X > BUTTON_B_X && X < BUTTON_B_X+BUTTON_SIZE &&
+                         Y > BUTTON_B_Y && Y < BUTTON_B_Y+BUTTON_SIZE);
+
+            dpad_l = ((X > DPAD_X) && (X < (DPAD_X + DPAD_B)) &&
+                      (Y > DPAD_Y) && (Y < (DPAD_Y + DPAD_B)));
+
+            dpad_r = ((X > DPAD_X+2*DPAD_B) && (X < (DPAD_X + 3*DPAD_B)) &&
+                      (Y > DPAD_Y) && (Y < (DPAD_Y + DPAD_B)));
+
+            dpad_u = ((X > DPAD_X+DPAD_B) && (X < (DPAD_X + 2*DPAD_B)) &&
+                      (Y > DPAD_Y-DPAD_B) && (Y < (DPAD_Y)));
+
+            dpad_d = ((X > DPAD_X+DPAD_B) && (X < (DPAD_X + 2*DPAD_B)) &&
+                      (Y > DPAD_Y+DPAD_B) && (Y < (DPAD_Y + 2*DPAD_B)));
+        }
+        else
+        {
+            a_pressed = 0;
+            b_pressed = 0;
+            dpad_l = 0;
+            dpad_r = 0;
+            dpad_u = 0;
+            dpad_d = 0;
+            BSP_LED_Off(LED3);
+        }
+    }
+    SETBIT(gb->direct.joypad, JOYPAD_A, a_pressed);
+    SETBIT(gb->direct.joypad, JOYPAD_B, b_pressed);
+    SETBIT(gb->direct.joypad, JOYPAD_LEFT, dpad_l);
+    SETBIT(gb->direct.joypad, JOYPAD_RIGHT, dpad_r);
+    SETBIT(gb->direct.joypad, JOYPAD_UP, dpad_u);
+    SETBIT(gb->direct.joypad, JOYPAD_DOWN, dpad_d);
+#endif
 }
 
 static void setupframebuffer(void)
 {
     BSP_LCD_SetFont(&Font12);
     BSP_LCD_Clear(BACKGROUNDCOLOR);
+
+    BSP_LCD_SetTextColor(COLOR(128,128,128));
     BSP_LCD_DrawVLine(SCREEN_X_OFFSET-1, SCREEN_Y_OFFSET, LCD_HEIGHT);
     BSP_LCD_DrawVLine(SCREEN_X_OFFSET+LCD_WIDTH, SCREEN_Y_OFFSET, LCD_HEIGHT);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET-1, LCD_WIDTH);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET+LCD_HEIGHT, LCD_WIDTH);
+
+    BSP_LCD_SetTextColor(COLOR(0x88,0x0f,0x42));
+    BSP_LCD_FillEllipse(BUTTON_A_X, BUTTON_A_Y, BUTTON_SIZE, BUTTON_SIZE);
+    BSP_LCD_FillEllipse(BUTTON_B_X, BUTTON_B_Y, BUTTON_SIZE, BUTTON_SIZE);
+
+    BSP_LCD_SetTextColor(COLOR(0,0,0));
+    BSP_LCD_FillRect(DPAD_X, DPAD_Y, 3*DPAD_B, DPAD_B);
+    BSP_LCD_FillRect(DPAD_X + DPAD_B, DPAD_Y - DPAD_B, DPAD_B, 3*DPAD_B);
 }
 
 void mainTask(void)
@@ -308,7 +397,7 @@ void mainTask(void)
 
         checkbuttons(&gb);
         gb_run_frame(&gb);
-        BSP_LCD_DisplayStringAt(0, 0, fpstext, LEFT_MODE);
+        BSP_LCD_DisplayStringAt(SCREEN_X_OFFSET + 2, SCREEN_Y_OFFSET + LCD_HEIGHT + 2, fpstext, LEFT_MODE);
         screen_flip_buffers();
 
         frameTimeMs = (int)(HAL_GetTick() - tickStart);
