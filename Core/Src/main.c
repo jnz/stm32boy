@@ -49,6 +49,9 @@ static const
 #define HEIGHT 320 /**< framebuffer height in pixel */
 #define BPP 4 /**< bytes/pixel */
 #define COLOR(r,g,b)   ((uint32_t)(0xff000000 | ((r) << 16) | ((g) << 8) | (b)))
+#define BACKGROUNDCOLOR  COLOR(255,255,255)
+#define SCREEN_X_OFFSET 40 /* shift Game Boy screen X pixels to the right */
+#define SCREEN_Y_OFFSET 10  /* shift Game Boy screen Y pixels down */
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -229,8 +232,8 @@ void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
 
     uint32_t* fb = g_fb[LCD_LAYER_BACK];
 
-    const int sx = 40; // shift Game Boy screen X pixels to the right
-    const int sy = 0;  // shift Game Boy screen Y pixels down
+    const int sx = SCREEN_X_OFFSET;
+    const int sy = SCREEN_Y_OFFSET;
     for(unsigned int x = 0; x < LCD_WIDTH; x++)
         fb[(line+sy) * WIDTH + x + sx] = palette[pixels[x] & 3];
 }
@@ -240,6 +243,17 @@ static void checkbuttons(struct gb_s* gb)
 {
     SETBIT(gb->direct.joypad, JOYPAD_START,   BSP_PB_GetState(BUTTON_KEY));
     SETBIT(gb->direct.joypad, JOYPAD_SELECT,  HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_4) == GPIO_PIN_RESET);
+}
+
+static void setupframebuffer(void)
+{
+    BSP_LCD_SetFont(&Font12);
+    BSP_LCD_Clear(BACKGROUNDCOLOR);
+    BSP_LCD_DrawVLine(SCREEN_X_OFFSET-1, SCREEN_Y_OFFSET, LCD_HEIGHT);
+    BSP_LCD_DrawVLine(SCREEN_X_OFFSET+LCD_WIDTH, SCREEN_Y_OFFSET, LCD_HEIGHT);
+    BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET-1, LCD_WIDTH);
+    BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET+LCD_HEIGHT, LCD_WIDTH);
+
 }
 
 void mainTask(void)
@@ -262,11 +276,10 @@ void mainTask(void)
     gb_init(&gb, &gb_rom_read, &gb_cart_ram_read,
             &gb_cart_ram_write, &gb_error, &priv);
 
-    BSP_LCD_SetFont(&Font12);
-    BSP_LCD_Clear(COLOR(10, 169, 216));
+    // Make sure front & backbuffer are in the same state
+    setupframebuffer();
     screen_flip_buffers();
-    BSP_LCD_SetFont(&Font12);
-    BSP_LCD_Clear(COLOR(10, 169, 216));
+    setupframebuffer();
 
     gb_init_lcd(&gb, &lcd_draw_line);
 
