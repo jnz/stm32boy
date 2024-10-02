@@ -18,6 +18,18 @@ Then run:
 
 ⚠️  This will not compile without a ROM file, which is NOT part of this repository. ⚠️
 
+Getting the hardware
+--------------------
+
+Get the following board:
+[STM32F429 Discovery Board](https://www.st.com/en/evaluation-tools/32f429idiscovery.html)
+
+Available e.g. at:
+ - [Farnell](https://de.farnell.com/stmicroelectronics/stm32f429i-disc1/entwicklungsboard-advanced-line/dp/2506924)
+ - [DigiKey](https://www.digikey.com/en/products/detail/stmicroelectronics/STM32F429I-DISC1/5731713)
+ - [Mouser](https://eu.mouser.com/ProductDetail/STMicroelectronics/STM32F429I-DISC1?qs=79dOc3%2F91%2Fed3%252BRc5JUCEw%3D%3D)
+ - [Reichelt](https://www.reichelt.de/discovery-kit-stm32f411-128kb-ram-512kb-flash-stm32f429i-disc1-p353434.html)
+
 Adding a ROM file
 -----------------
 
