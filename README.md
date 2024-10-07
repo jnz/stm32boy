@@ -45,3 +45,9 @@ something like this:
     unsigned char gameboy_rom_gb[] = {
       0xc3, 0x0c, 0x02, ...
 
+
+Thanks
+------
+
+Thanks to deltabeard for the single header Peanug-GB emulator library.
+
