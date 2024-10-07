@@ -53,18 +53,28 @@ static const
 #define BACKGROUNDCOLOR  COLOR(255,255,255)
 #define SCREEN_X_OFFSET 40 /* shift Game Boy screen X pixels to the right */
 #define SCREEN_Y_OFFSET 10  /* shift Game Boy screen Y pixels down */
+#define BORDERCOLOR1    COLOR(128,128,128)
+#define BORDERCOLOR2    COLOR(80,80,80)
+#define BUTTONCOLOR     COLOR(0x88,0x0f,0x42)
+#define BUTTONCOLOR_ON  COLOR(0xff,0x3f,0x82)
+#define DPADCOLOR       COLOR(0,0,0)
+
+#define GBCOLOR1        COLOR(155,188,15)  // COLOR(255,255,255)
+#define GBCOLOR2        COLOR(139,172,15)  // COLOR(0xA5,0xA5,0xA5)
+#define GBCOLOR3        COLOR(48,98,48)    // COLOR(0x52,0x52,0x52)
+#define GBCOLOR4        COLOR(15,56,15)    // COLOR(0,0,0)
 
 // #define USE_DISCRETE_INPUT /* discrete GPIOs are connected to buttons */
-#define USE_TOUCH_INPUT
+// #define USE_TOUCH_INPUT
 
-#define DPAD_X  20
-#define DPAD_Y  220
-#define DPAD_B  25
-#define BUTTON_A_X 200
-#define BUTTON_A_Y 210
-#define BUTTON_B_X 160
-#define BUTTON_B_Y 260
-#define BUTTON_SIZE 20
+#define DPAD_X  20        /**< DPAD X position in pixels */
+#define DPAD_Y  220       /**< DPAD Y position in pixels */
+#define DPAD_B  25        /**< DPAD size in pixels */
+#define BUTTON_A_X 200    /**< button A X position on screen */
+#define BUTTON_A_Y 210    /**< button A Y position on screen */
+#define BUTTON_B_X 160    /**< button B X position on screen */
+#define BUTTON_B_Y 260    /**< button B X position on screen */
+#define BUTTON_SIZE 20    /**< size of button A & B */
 
 /* Private macro -------------------------------------------------------------*/
 
@@ -105,7 +115,7 @@ int main(void)
     /* ------------- */
     BSP_LED_Init(LED3);
     BSP_LED_Init(LED4);
-    BSP_LED_On(LED4);
+    BSP_LED_On(LED4); /* RED LED active until init is complete */
     BSP_PB_Init(BUTTON_KEY, BUTTON_MODE_GPIO); /* blue button on disco board */
 
     /* Serial output (UART)  */
@@ -147,7 +157,9 @@ int main(void)
 
     /* Touch */
     /* ----- */
+#ifdef USE_TOUCH_INPUT
     BSP_TS_Init(WIDTH, HEIGHT);
+#endif
 
     /* Setup buttons */
     /* ------------- */
@@ -248,23 +260,28 @@ void lcd_draw_line(struct gb_s *gb, const uint8_t pixels[160],
            const uint_fast8_t line)
 {
     // The Game Boy has 4 colors, map them to 32bit RGB colors
-    /*
-    const uint32_t palette[] = { COLOR(255,255,255),
-                                 COLOR(0xA5,0xA5,0xA5),
-                                 COLOR(0x52,0x52,0x52),
-                                 COLOR(0,0,0) };
-    */
-    const uint32_t palette[] = { COLOR(155,188,15),
-                                 COLOR(139,172,15),
-                                 COLOR(48,98,48),
-                                 COLOR(15,56,15) };
-
+    const uint32_t palette[] = { GBCOLOR1, GBCOLOR2, GBCOLOR3, GBCOLOR4 };
     uint32_t* fb = g_fb[LCD_LAYER_BACK];
 
-    const int sx = SCREEN_X_OFFSET;
-    const int sy = SCREEN_Y_OFFSET;
+    // draw a single line into the frame buffer
     for(unsigned int x = 0; x < LCD_WIDTH; x++)
-        fb[(line+sy) * WIDTH + x + sx] = palette[pixels[x] & 3];
+    {
+        fb[(line+SCREEN_Y_OFFSET) * WIDTH + x + SCREEN_X_OFFSET] =
+            palette[pixels[x] & 3]; /* mask with 3 there are other bits set */
+    }
+}
+
+static void drawbuttons(const struct gb_s* gb)
+{
+    BSP_LCD_SetTextColor(gb->direct.joypad & JOYPAD_A ? BUTTONCOLOR_ON : BUTTONCOLOR);
+    BSP_LCD_FillEllipse(BUTTON_A_X, BUTTON_A_Y, BUTTON_SIZE, BUTTON_SIZE);
+
+    BSP_LCD_SetTextColor(gb->direct.joypad & JOYPAD_B ? BUTTONCOLOR_ON : BUTTONCOLOR);
+    BSP_LCD_FillEllipse(BUTTON_B_X, BUTTON_B_Y, BUTTON_SIZE, BUTTON_SIZE);
+
+    BSP_LCD_SetTextColor(DPADCOLOR);
+    BSP_LCD_FillRect(DPAD_X, DPAD_Y, 3*DPAD_B, DPAD_B);
+    BSP_LCD_FillRect(DPAD_X + DPAD_B, DPAD_Y - DPAD_B, DPAD_B, 3*DPAD_B);
 }
 
 #define SETBIT(w, m, f) if (f) { w |= m; } else { w &= ~m; }
@@ -283,6 +300,7 @@ static void checkbuttons(struct gb_s* gb)
     SETBIT(gb->direct.joypad, JOYPAD_UP,     HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET);
 #endif
 #ifdef USE_TOUCH_INPUT
+    // reading the touch is costing framerate, read only every x-th epoch
     static int epoch = 0;
     static int a_pressed = 0;
     static int b_pressed = 0;
@@ -291,8 +309,7 @@ static void checkbuttons(struct gb_s* gb)
     static int dpad_u = 0;
     static int dpad_d = 0;
 
-    epoch++;
-    if (epoch > 10)
+    if (epoch++ > 20)
     {
         epoch = 0;
 
@@ -342,24 +359,19 @@ static void checkbuttons(struct gb_s* gb)
 #endif
 }
 
-static void setupframebuffer(void)
+static void setupframebuffer(const struct gb_s* gb)
 {
     BSP_LCD_SetFont(&Font12);
     BSP_LCD_Clear(BACKGROUNDCOLOR);
 
-    BSP_LCD_SetTextColor(COLOR(128,128,128));
+    BSP_LCD_SetTextColor(BORDERCOLOR1);
     BSP_LCD_DrawVLine(SCREEN_X_OFFSET-1, SCREEN_Y_OFFSET, LCD_HEIGHT);
-    BSP_LCD_DrawVLine(SCREEN_X_OFFSET+LCD_WIDTH, SCREEN_Y_OFFSET, LCD_HEIGHT);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET-1, LCD_WIDTH);
+    BSP_LCD_SetTextColor(BORDERCOLOR2);
+    BSP_LCD_DrawVLine(SCREEN_X_OFFSET+LCD_WIDTH, SCREEN_Y_OFFSET, LCD_HEIGHT);
     BSP_LCD_DrawHLine(SCREEN_X_OFFSET, SCREEN_Y_OFFSET+LCD_HEIGHT, LCD_WIDTH);
 
-    BSP_LCD_SetTextColor(COLOR(0x88,0x0f,0x42));
-    BSP_LCD_FillEllipse(BUTTON_A_X, BUTTON_A_Y, BUTTON_SIZE, BUTTON_SIZE);
-    BSP_LCD_FillEllipse(BUTTON_B_X, BUTTON_B_Y, BUTTON_SIZE, BUTTON_SIZE);
-
-    BSP_LCD_SetTextColor(COLOR(0,0,0));
-    BSP_LCD_FillRect(DPAD_X, DPAD_Y, 3*DPAD_B, DPAD_B);
-    BSP_LCD_FillRect(DPAD_X + DPAD_B, DPAD_Y - DPAD_B, DPAD_B, 3*DPAD_B);
+    drawbuttons(gb);
 }
 
 void mainTask(void)
@@ -383,13 +395,13 @@ void mainTask(void)
             &gb_cart_ram_write, &gb_error, &priv);
 
     // Make sure front & backbuffer are in the same state
-    setupframebuffer();
+    setupframebuffer(&gb);
     screen_flip_buffers();
-    setupframebuffer();
+    setupframebuffer(&gb);
 
     gb_init_lcd(&gb, &lcd_draw_line);
 
-    BSP_LED_Off(LED4);
+    BSP_LED_Off(LED4); /* init complete, clear RED LED */
 
     for(uint32_t epoch=0;;epoch++)
     {
@@ -397,11 +409,13 @@ void mainTask(void)
 
         checkbuttons(&gb);
         gb_run_frame(&gb);
+
         BSP_LCD_DisplayStringAt(SCREEN_X_OFFSET + 2, SCREEN_Y_OFFSET + LCD_HEIGHT + 2, fpstext, LEFT_MODE);
-        screen_flip_buffers();
 
+        screen_flip_buffers(); /* swap backbuffer and frontbuffer */
+
+        /* Sleep for the rest of the frame? */
         frameTimeMs = (int)(HAL_GetTick() - tickStart);
-
         int timeleftMs = setpointframeTimeMs - frameTimeMs;
         timeleftMs = timeleftMs > 0 ? timeleftMs : 0;
         sleep(timeleftMs);
