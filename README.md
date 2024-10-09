@@ -49,5 +49,5 @@ something like this:
 Thanks
 ------
 
-Thanks to deltabeard for the single header Peanug-GB emulator library.
+Thanks to deltabeard for the single header [Peanut-GB](https://github.com/deltabeard/Peanut-GB) emulator library.
 
