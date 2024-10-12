@@ -12,6 +12,7 @@ Create a `config.mk` with the following path to the cross compiler GCC:
 
     TOOLCHAIN_ROOT=/path/to/gcc-arm-none-eabi-XX.XX-XX/bin/
 
+Create a "build" folder inside this repo.
 Then run:
 
     make
