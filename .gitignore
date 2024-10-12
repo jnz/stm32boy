@@ -2,7 +2,8 @@ Core/Src/gameboy_rom.h
 .settings
 Debug/*
 Release/*
-build/*
+build/*.o
+build/*.d
 firmware.bin
 firmware.dmp
 firmware.elf
